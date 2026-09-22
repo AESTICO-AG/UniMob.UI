@@ -59,6 +59,20 @@ namespace UniMob.UI.Internal.Pooling
             return obj;
         }
 
+        /// <summary>
+        /// Destroys every idle instance in every pool, so the next <see cref="Instantiate"/> of any
+        /// prefab builds a fresh one. The pools stay registered: an instance in use when this runs
+        /// still has a pool to return to.
+        /// </summary>
+        internal static void DestroyIdle()
+        {
+            foreach (var pool in Pools.Values)
+            {
+                if (pool != null)
+                    pool.DestroyIdle();
+            }
+        }
+
         public static void Recycle(
             GameObject obj,
             bool deactivate = true,
@@ -168,6 +182,18 @@ namespace UniMob.UI.Internal.Pooling
                     instance.transform.SetParent(transform, worldPositionStays);
 
                 _stack.Enqueue(instance);
+
+                EditorUpdateName();
+            }
+
+            public void DestroyIdle()
+            {
+                while (_stack.Count > 0)
+                {
+                    var instance = _stack.Dequeue();
+                    if (instance != null)
+                        Object.Destroy(instance);
+                }
 
                 EditorUpdateName();
             }
