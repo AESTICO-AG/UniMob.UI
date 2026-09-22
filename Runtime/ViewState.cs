@@ -12,7 +12,7 @@ namespace UniMob.UI
 
         private IView? _mountedView;
         private Canvas? _rootCanvas;
-        private Atom<WidgetGeometry>? _globalGeometry;
+        private MutableAtom<WidgetGeometry>? _globalGeometry;
 
         public abstract WidgetViewReference View { get; }
 
@@ -82,8 +82,10 @@ namespace UniMob.UI
         }
 
         /// <summary>
-        /// <b>[Atom]</b> This widget's on-screen box in canvas space, re-measured every frame while
-        /// observed so that followers track movement (scroll/animation) that Unity never signals.
+        /// <b>[Atom]</b> This widget's on-screen box in canvas space. From its first read until this
+        /// state is disposed it is re-measured at the end of every frame and changes only when the box
+        /// actually moved or resized, so followers track movement (scroll/animation) that Unity never
+        /// signals, and a box standing still leaves nothing queued.
         /// <see cref="WidgetGeometry.Empty"/> while the widget is not mounted.
         /// </summary>
         public WidgetGeometry GlobalGeometry
@@ -92,27 +94,32 @@ namespace UniMob.UI
             {
                 if (_globalGeometry == null)
                 {
-                    WidgetGeometryTicker.EnsureStarted();
-                    _globalGeometry = Atom.Computed(
+                    _globalGeometry = Atom.Value(
                         StateLifetime,
-                        ComputeGlobalGeometry,
+                        MeasureGlobalGeometry(),
                         debugName: "ViewState.GlobalGeometry"
                     );
+                    WidgetGeometryTicker.Track(this);
                 }
 
                 return _globalGeometry.Value;
             }
         }
 
-        private WidgetGeometry ComputeGlobalGeometry()
+        /// <summary>
+        /// Measures the box again and stores it, which invalidates <see cref="GlobalGeometry"/> only
+        /// when the measurement differs. Called by <see cref="WidgetGeometryTicker"/>.
+        /// </summary>
+        internal void RemeasureGlobalGeometry()
         {
-            // Establish a per-frame dependency so the box is re-measured while this atom is observed,
-            // catching movement (scroll/animation) that produces no layout or render event. When
-            // unobserved, this computed atom stays dormant and costs nothing.
-            _ = WidgetGeometryTicker.Frame.Value;
-
-            return TryGetGlobalGeometry(out var geometry) ? geometry : WidgetGeometry.Empty;
+            if (_globalGeometry != null)
+            {
+                _globalGeometry.Value = MeasureGlobalGeometry();
+            }
         }
+
+        private WidgetGeometry MeasureGlobalGeometry() =>
+            TryGetGlobalGeometry(out var geometry) ? geometry : WidgetGeometry.Empty;
 
         private static Canvas? ResolveRootCanvas(IView view)
         {

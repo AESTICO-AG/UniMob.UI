@@ -1,25 +1,47 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace UniMob.UI.Rendering
 {
     /// <summary>
-    /// Drives reactive global-geometry tracking. Unity does not signal a widget when it merely moves
-    /// (e.g. an ancestor scrolls) without resizing, so a widget's on-screen box can change with no
-    /// layout or render event. This ticker exposes a per-frame <see cref="Frame"/> atom that a reactive
-    /// <c>GlobalGeometry</c> depends on, forcing a re-measure each frame -- but only for geometries that
-    /// are actually being observed, since unobserved computed atoms stay dormant. The single always-on
-    /// cost is one integer increment per frame, and it is incurred only after tracking is first used.
+    /// Keeps the on-screen boxes that have been asked for current. Unity does not signal a widget when
+    /// it merely moves (e.g. an ancestor scrolls) without resizing, so at the end of every frame this
+    /// re-measures each tracked box and stores the result, which invalidates the box's
+    /// <c>GlobalGeometry</c> atom only when it changed: a box standing still queues nothing, and one
+    /// that moved wakes its followers on the next frame. A box is tracked from the first read of its
+    /// geometry until its state is disposed.
     /// </summary>
     internal static class WidgetGeometryTicker
     {
-        private static MutableAtom<uint>? _frame;
+        private static readonly HashSet<ViewState> Tracked = new HashSet<ViewState>();
+
+        // The boxes one tick measures, copied out first: storing a measurement can reach code that
+        // disposes a state, and a disposed state leaves the set while it is being walked.
+        private static readonly List<ViewState> Pass = new List<ViewState>();
+
         private static WidgetGeometryTickerDriver? _driver;
 
-        // Minted on first read rather than when the driver starts, so a frame that ticks before
-        // anything observes geometry allocates nothing: Tick's null check is what skips it.
-        public static MutableAtom<uint> Frame => _frame ??= Atom.Value(0u);
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Initialize()
+        {
+            Tracked.Clear();
+            Pass.Clear();
+        }
 
-        public static void EnsureStarted()
+        /// <summary>
+        /// Re-measures <paramref name="state"/> every frame until its state lifetime is disposed.
+        /// </summary>
+        public static void Track(ViewState state)
+        {
+            EnsureStarted();
+
+            if (Tracked.Add(state))
+            {
+                state.StateLifetime.Register(() => Tracked.Remove(state));
+            }
+        }
+
+        private static void EnsureStarted()
         {
             if (_driver != null)
             {
@@ -36,14 +58,29 @@ namespace UniMob.UI.Rendering
 
         internal static void Tick()
         {
-            if (_frame == null)
+            if (Tracked.Count == 0)
             {
                 return;
             }
 
-            using (Atom.NoWatch)
+            foreach (var state in Tracked)
             {
-                _frame.Value = unchecked(_frame.Value + 1);
+                Pass.Add(state);
+            }
+
+            try
+            {
+                foreach (var state in Pass)
+                {
+                    if (!state.StateLifetime.IsDisposed)
+                    {
+                        state.RemeasureGlobalGeometry();
+                    }
+                }
+            }
+            finally
+            {
+                Pass.Clear();
             }
         }
     }

@@ -176,6 +176,12 @@ Every entry in this section is a breaking change.
 
 ### Fixed
 
+- A watched `GlobalGeometry` (every `AnchoredBox`, and every observer of a `WidgetGeometryKey`) kept
+  `AtomScheduler.HasPendingWork` true for as long as it was watched, so `Zone.IsQuiescent` never came
+  true while a popup menu or a callout was open. The box was invalidated at the end of every frame
+  and re-measured on the next one, moved or not. `WidgetGeometryTicker` now re-measures each watched
+  box itself and invalidates it only when it moved or resized; a follower still catches a move on
+  the next frame.
 - A lazy `ScrollList` or `ScrollGrid` whose items differ in size lost items from the viewport as it
   was scrolled down, up to showing none at all. The items to build were picked by dividing the
   offset by the average item size, while the items were placed by their measured sizes, so a run of

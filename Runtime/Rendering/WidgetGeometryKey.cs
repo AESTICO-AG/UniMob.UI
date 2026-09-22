@@ -58,9 +58,10 @@ namespace UniMob.UI.Rendering
         }
 
         /// <summary>
-        /// <b>[Atom]</b> The keyed widget's on-screen box in canvas space, tracking movement while
-        /// observed; <see cref="WidgetGeometry.Empty"/> while the widget is unmounted or the key is
-        /// unbound. Observers created during that window wake when the key binds.
+        /// <b>[Atom]</b> The keyed widget's on-screen box in canvas space, re-measured at the end of
+        /// every frame and changing only when the box moves or resizes;
+        /// <see cref="WidgetGeometry.Empty"/> while the widget is unmounted or the key is unbound.
+        /// Observers created during that window wake when the key binds.
         /// </summary>
         public WidgetGeometry GlobalGeometry => TrackedView?.GlobalGeometry ?? WidgetGeometry.Empty;
 

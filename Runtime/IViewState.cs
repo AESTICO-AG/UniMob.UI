@@ -35,8 +35,9 @@ namespace UniMob.UI
         bool TryGetGlobalGeometry(out WidgetGeometry geometry);
 
         /// <summary>
-        /// <b>[Atom]</b> The widget's on-screen box in canvas space, re-measured every frame while
-        /// observed so followers track movement (scroll/animation) that Unity never signals.
+        /// <b>[Atom]</b> The widget's on-screen box in canvas space. From its first read it is
+        /// re-measured at the end of every frame and changes only when the box moved or resized, so
+        /// followers track movement (scroll/animation) that Unity never signals.
         /// <see cref="WidgetGeometry.Empty"/> while the widget is not mounted.
         /// </summary>
         WidgetGeometry GlobalGeometry { get; }

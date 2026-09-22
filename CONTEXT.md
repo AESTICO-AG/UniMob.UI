@@ -95,7 +95,7 @@ Three drivers advance a frame, and they run in this order:
 
 1. `Zone` — tickers, then the next-frame queue.
 2. `AtomScheduler` — actualizes what those invalidated.
-3. `WidgetGeometryTicker` — bumps the geometry atom.
+3. `WidgetGeometryTicker` — re-measures the watched boxes, invalidating those that moved.
 
 The order is **measured, not assumed**. `ZoneDriverTests` asserts it against the real player loop, and
 `ZoneDriver` pins it with `[DefaultExecutionOrder]` so it cannot drift: both Update-phase components
