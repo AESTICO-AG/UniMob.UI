@@ -178,6 +178,42 @@ namespace UniMob.UI.Rendering
             : axis == Axis.Horizontal ? new Vector2(-offset.x, offset.y)
             : new Vector2(offset.x, -offset.y);
 
+        /// <summary>
+        /// The width on the roomier side of an anchor the child opens east or west of, less the offset
+        /// and the keep-inside padding: what a child needs on that side, as <see cref="ShouldFlip"/>
+        /// counts it.
+        /// </summary>
+        /// <remarks>
+        /// Null, leaving the frame as the bound, when:
+        /// <list type="bullet">
+        /// <item>the child does not open beside the anchor horizontally. Width is what content wraps
+        /// to fit; a menu that opens north or south cannot shrink its height the same way, and a
+        /// column of entries capped at one side would lose its last ones instead of overlapping.</item>
+        /// <item>its width is the anchor's own (<c>MatchAnchorWidth</c>), which this must not undercut.</item>
+        /// <item>nothing is measured yet, or the anchor point names no side.</item>
+        /// <item>even the roomier side is under half the frame's usable width: an anchor in the middle
+        /// of a narrow frame would squeeze the child into a sliver, and overlapping it is the lesser
+        /// harm there.</item>
+        /// </list>
+        /// </remarks>
+        private float? RoomBesideAnchor(float padding)
+        {
+            if (this.state.FlipToFit != Axis.Horizontal || this.state.MatchAnchorWidth)
+                return null;
+
+            if (this.state.TargetAnchor.X == 0f || !this.TryGetGeometry(out var anchor, out _))
+                return null;
+
+            var self = this.state.SelfGeometry.Aabb;
+            var box = anchor.Aabb;
+
+            var widest = Mathf.Max(self.xMax - box.xMax, box.xMin - self.xMin);
+            var room = widest - Mathf.Abs(this.state.Offset.x) - padding;
+            var usable = self.width - (padding * 2f);
+
+            return room < usable / 2f ? null : room;
+        }
+
         private LayoutConstraints ChildConstraints(Vector2 self)
         {
             var width = this.state.MatchAnchorWidth
@@ -206,6 +242,13 @@ namespace UniMob.UI.Rendering
             // at the call site.
             var maxWidth = Mathf.Max(0f, self.x - (padding * 2f));
             var maxHeight = Mathf.Max(0f, self.y - (padding * 2f));
+
+            // A child that opens beside its anchor has only the room on one side of it, not the whole
+            // frame: capped at the frame, a child too wide for either side is slid back inside over
+            // the anchor it points at. Capped at the wider side, content that wraps wraps to fit
+            // there, and the flip puts it on that side.
+            if (this.RoomBesideAnchor(padding) is { } room)
+                maxWidth = Mathf.Min(maxWidth, room);
 
             return new LayoutConstraints(
                 width ?? 0f,
