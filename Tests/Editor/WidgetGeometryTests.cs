@@ -12,7 +12,7 @@ namespace UniMob.UI.Tests
     public class WidgetGeometryTests
     {
         // Builds an axis-aligned geometry from a canvas-space rect (world == canvas for these tests).
-        private static WidgetGeometry FromRect(Rect canvasRect)
+        internal static WidgetGeometry FromRect(Rect canvasRect)
         {
             var quad = new Quad(
                 bottomLeft: new Vector2(canvasRect.xMin, canvasRect.yMin),
