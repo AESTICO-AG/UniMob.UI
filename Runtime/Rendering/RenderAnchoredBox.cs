@@ -70,8 +70,8 @@ namespace UniMob.UI.Rendering
             // Always the real constraints, even before the anchor is known: squeezing the child to hide
             // it would make every flex row inside it report an overflow. The state substitutes a
             // placeholder child while there is nowhere to put it, so there is nothing to hide here.
-            // Sizing reads the anchor in one case only, a child opening east or west, whose width is
-            // capped at the room beside it (RoomBesideAnchor); everywhere else only placement does.
+            // Sizing reads the anchor's width for MatchAnchorWidth, and its position for a child
+            // opening east or west, whose width is capped at the room beside it (RoomBesideAnchor).
             this.ChildSize = this.LayoutChild(this.Child, this.ChildConstraints(self));
             return self;
         }
@@ -189,10 +189,12 @@ namespace UniMob.UI.Rendering
         /// <see cref="RoomOnEachSide"/>, or null to leave the frame as the bound.
         /// </summary>
         /// <remarks>
-        /// The child opens east or west when <see cref="UniMob.UI.Widgets.AnchoredBox.FlipToFit"/> is horizontal, the target point
-        /// is on a vertical edge of the anchor and the child's own point is on its opposite edge. Null
+        /// The child opens east or west when
+        /// <see cref="UniMob.UI.Widgets.AnchoredBox.FlipToFit"/> is horizontal, the target point is
+        /// on a vertical edge of the anchor and the child's own point is on its opposite edge. Null
         /// when it does not, when <c>MatchAnchorWidth</c> sets the width, when the geometry is not
-        /// measured yet, and when the wider side is under half the frame's usable width.
+        /// measured yet, and when the wider side has no room at all or is under half the frame's
+        /// usable width.
         /// </remarks>
         private float? RoomBesideAnchor(float padding)
         {
@@ -212,7 +214,9 @@ namespace UniMob.UI.Rendering
             var room = Mathf.Max(east, west);
             var usable = this.state.SelfGeometry.Aabb.width - (padding * 2f);
 
-            return room < usable / 2f ? null : room;
+            // In a frame narrower than twice the padding both sides are negative, and so is half the
+            // usable width, which would let a negative bound through.
+            return room <= 0f || room < usable / 2f ? null : room;
         }
 
         private LayoutConstraints ChildConstraints(Vector2 self)

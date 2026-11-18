@@ -13,10 +13,10 @@ namespace UniMob.UI.Tests
     ///     child opening east or west gets no more than the room on the wider side of its anchor.
     /// </summary>
     /// <remarks>
-    ///     On the frame: its own size is the box "keep inside" refers to, so an unbounded axis does not merely make
-    ///     it bigger: the clamp silently stops clamping, and the child is offered infinite room. The
-    ///     failure then reads as a positioning bug wherever the child ends up, a long way from the
-    ///     parent that forgot to give it a frame.
+    ///     On the frame: its own size is the box "keep inside" refers to, so an unbounded axis does
+    ///     not merely make it bigger: the clamp silently stops clamping, and the child is offered
+    ///     infinite room. The failure then reads as a positioning bug wherever the child ends up, a
+    ///     long way from the parent that forgot to give it a frame.
     ///     <para>
     ///         Reachable from ordinary code since a ZStack lays a positioned child out unbounded on
     ///         any axis it does not pin, so <c>Positioned { Left, Top }</c> around an anchored box
@@ -304,6 +304,19 @@ namespace UniMob.UI.Tests
             var (_, child) = LayOutWest(WidgetGeometry.Empty, offset: new Vector2(-200, 0));
 
             Assert.AreEqual(1460 - 2 * Padding, child.LastConstraints.MaxWidth);
+        }
+
+        [Test]
+        public void AFrameNarrowerThanTwiceThePadding_OffersNoNegativeWidth()
+        {
+            // Each side: 20 - 36 = -16, and so is half the usable width, (40 - 72) / 2.
+            var (_, child) = LayOutWest(
+                Geometry(20, 380, 20, 420),
+                frame: new Vector2(40, 800),
+                offset: Vector2.zero
+            );
+
+            Assert.AreEqual(0f, child.LastConstraints.MaxWidth);
         }
 
         [Test]
