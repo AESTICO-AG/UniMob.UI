@@ -67,10 +67,11 @@ namespace UniMob.UI.Rendering
                 return self;
             }
 
-            // Always the real constraints, even before the anchor is known. Sizing does not depend on
-            // the anchor -- only placement does -- and squeezing the child to hide it would make every
-            // flex row inside it report an overflow. The state substitutes a placeholder child while
-            // there is nowhere to put it, so there is nothing to hide here.
+            // Always the real constraints, even before the anchor is known: squeezing the child to hide
+            // it would make every flex row inside it report an overflow. The state substitutes a
+            // placeholder child while there is nowhere to put it, so there is nothing to hide here.
+            // Sizing reads the anchor in one case only, a child opening east or west, whose width is
+            // capped at the room beside it (RoomBesideAnchor); everywhere else only placement does.
             this.ChildSize = this.LayoutChild(this.Child, this.ChildConstraints(self));
             return self;
         }
@@ -128,44 +129,49 @@ namespace UniMob.UI.Rendering
             if (this.state.FlipToFit is not { } axis)
                 return false;
 
+            // The alignment component that names the side. A centred anchor point names none, so
+            // there is nothing to flip it away from.
+            var side =
+                axis == Axis.Horizontal ? this.state.TargetAnchor.X : this.state.TargetAnchor.Y;
+            if (side == 0f)
+                return false;
+
+            var (towardsPositive, towardsNegative) = this.RoomOnEachSide(anchor, axis);
+            var preferred = side > 0f ? towardsPositive : towardsNegative;
+            var opposite = side > 0f ? towardsNegative : towardsPositive;
+            var size = axis == Axis.Horizontal ? this.ChildSize.x : this.ChildSize.y;
+
+            return preferred < size && opposite >= size;
+        }
+
+        /// <summary>
+        /// The room a child has on each side of the anchor along <paramref name="axis"/>, within our
+        /// own frame, less the offset and the keep-inside padding. Both the flip and the side cap read
+        /// it, so a child sized to the cap is exactly what the flip counts as fitting.
+        /// </summary>
+        private (float towardsPositive, float towardsNegative) RoomOnEachSide(
+            WidgetGeometry anchor,
+            Axis axis
+        )
+        {
             var self = this.state.SelfGeometry.Aabb;
             var box = anchor.Aabb;
             var padding = this.state.KeepInsidePadding ?? 0f;
 
-            // The alignment component that names the side, the room on either side of the anchor
-            // within our own frame, and how much of it the child needs.
-            float side,
-                towardsPositive,
-                towardsNegative,
-                needed;
-
             if (axis == Axis.Horizontal)
             {
-                side = this.state.TargetAnchor.X;
                 // Alignment +X is east and canvas +x is east: the two agree, nothing reverses.
-                towardsPositive = self.xMax - box.xMax;
-                towardsNegative = box.xMin - self.xMin;
-                needed = this.ChildSize.x + Mathf.Abs(this.state.Offset.x) + padding;
+                var spent = Mathf.Abs(this.state.Offset.x) + padding;
+                return (self.xMax - box.xMax - spent, box.xMin - self.xMin - spent);
             }
             else
             {
-                side = this.state.TargetAnchor.Y;
                 // Alignment +Y is SOUTH while canvas +y points north, so the two room terms swap.
                 // This is the disagreement between Alignment's two mappers, and it is why the
                 // vertical half of the flip preview is the half worth reading.
-                towardsPositive = box.yMin - self.yMin;
-                towardsNegative = self.yMax - box.yMax;
-                needed = this.ChildSize.y + Mathf.Abs(this.state.Offset.y) + padding;
+                var spent = Mathf.Abs(this.state.Offset.y) + padding;
+                return (box.yMin - self.yMin - spent, self.yMax - box.yMax - spent);
             }
-
-            // A centred anchor point names no side, so there is nothing to flip it away from.
-            if (side == 0f)
-                return false;
-
-            var preferred = side > 0f ? towardsPositive : towardsNegative;
-            var opposite = side > 0f ? towardsNegative : towardsPositive;
-
-            return preferred < needed && opposite >= needed;
         }
 
         private static Alignment Mirror(Alignment alignment, Axis? axis, bool flipped) =>
@@ -179,37 +185,32 @@ namespace UniMob.UI.Rendering
             : new Vector2(offset.x, -offset.y);
 
         /// <summary>
-        /// The width on the roomier side of an anchor the child opens east or west of, less the offset
-        /// and the keep-inside padding: what a child needs on that side, as <see cref="ShouldFlip"/>
-        /// counts it.
+        /// The room on the wider side of an anchor the child opens east or west of, from
+        /// <see cref="RoomOnEachSide"/>, or null to leave the frame as the bound.
         /// </summary>
         /// <remarks>
-        /// Null, leaving the frame as the bound, when:
-        /// <list type="bullet">
-        /// <item>the child does not open beside the anchor horizontally. Width is what content wraps
-        /// to fit; a menu that opens north or south cannot shrink its height the same way, and a
-        /// column of entries capped at one side would lose its last ones instead of overlapping.</item>
-        /// <item>its width is the anchor's own (<c>MatchAnchorWidth</c>), which this must not undercut.</item>
-        /// <item>nothing is measured yet, or the anchor point names no side.</item>
-        /// <item>even the roomier side is under half the frame's usable width: an anchor in the middle
-        /// of a narrow frame would squeeze the child into a sliver, and overlapping it is the lesser
-        /// harm there.</item>
-        /// </list>
+        /// The child opens east or west when <see cref="UniMob.UI.Widgets.AnchoredBox.FlipToFit"/> is horizontal, the target point
+        /// is on a vertical edge of the anchor and the child's own point is on its opposite edge. Null
+        /// when it does not, when <c>MatchAnchorWidth</c> sets the width, when the geometry is not
+        /// measured yet, and when the wider side is under half the frame's usable width.
         /// </remarks>
         private float? RoomBesideAnchor(float padding)
         {
-            if (this.state.FlipToFit != Axis.Horizontal || this.state.MatchAnchorWidth)
+            var target = this.state.TargetAnchor.X;
+            var opensBeside =
+                this.state.FlipToFit == Axis.Horizontal
+                && target != 0f
+                && this.state.ChildAnchor.X == -target;
+
+            if (!opensBeside || this.state.MatchAnchorWidth)
                 return null;
 
-            if (this.state.TargetAnchor.X == 0f || !this.TryGetGeometry(out var anchor, out _))
+            if (!this.TryGetGeometry(out var anchor, out _))
                 return null;
 
-            var self = this.state.SelfGeometry.Aabb;
-            var box = anchor.Aabb;
-
-            var widest = Mathf.Max(self.xMax - box.xMax, box.xMin - self.xMin);
-            var room = widest - Mathf.Abs(this.state.Offset.x) - padding;
-            var usable = self.width - (padding * 2f);
+            var (east, west) = this.RoomOnEachSide(anchor, Axis.Horizontal);
+            var room = Mathf.Max(east, west);
+            var usable = this.state.SelfGeometry.Aabb.width - (padding * 2f);
 
             return room < usable / 2f ? null : room;
         }
@@ -243,10 +244,8 @@ namespace UniMob.UI.Rendering
             var maxWidth = Mathf.Max(0f, self.x - (padding * 2f));
             var maxHeight = Mathf.Max(0f, self.y - (padding * 2f));
 
-            // A child that opens beside its anchor has only the room on one side of it, not the whole
-            // frame: capped at the frame, a child too wide for either side is slid back inside over
-            // the anchor it points at. Capped at the wider side, content that wraps wraps to fit
-            // there, and the flip puts it on that side.
+            // A child opening east or west gets at most the room on the wider side of its anchor, so
+            // content that wraps fits there and the flip puts it on that side.
             if (this.RoomBesideAnchor(padding) is { } room)
                 maxWidth = Mathf.Min(maxWidth, room);
 

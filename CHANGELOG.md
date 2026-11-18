@@ -176,6 +176,12 @@ Every entry in this section is a breaking change.
 
 ### Fixed
 
+- An `AnchoredBox` child opening east or west of its anchor (`FlipToFit` horizontal, keep-inside on,
+  `TargetAnchor` and `ChildAnchor` on opposite vertical edges) was offered the whole frame's width,
+  so one too wide for either side was slid back inside over the anchor it points at. It is now
+  offered at most the room on the wider side of the anchor, less the offset and the padding, and
+  content that wraps fits there. `MatchAnchorWidth`, a vertical flip, and an anchor whose wider side
+  is under half the frame's usable width keep the frame as the bound.
 - A watched `GlobalGeometry` (every `AnchoredBox`, and every observer of a `WidgetGeometryKey`) kept
   `AtomScheduler.HasPendingWork` true for as long as it was watched, so `Zone.IsQuiescent` never came
   true while a popup menu or a callout was open. The box was invalidated at the end of every frame

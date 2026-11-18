@@ -9,10 +9,11 @@ using UnityEngine;
 namespace UniMob.UI.Tests
 {
     /// <summary>
-    ///     That <see cref="RenderAnchoredBox"/> insists on a bounded frame.
+    ///     What <see cref="RenderAnchoredBox"/> offers its child: it insists on a bounded frame, and a
+    ///     child opening east or west gets no more than the room on the wider side of its anchor.
     /// </summary>
     /// <remarks>
-    ///     Its own size is the box "keep inside" refers to, so an unbounded axis does not merely make
+    ///     On the frame: its own size is the box "keep inside" refers to, so an unbounded axis does not merely make
     ///     it bigger: the clamp silently stops clamping, and the child is offered infinite room. The
     ///     failure then reads as a positioning bug wherever the child ends up, a long way from the
     ///     parent that forgot to give it a frame.
@@ -122,29 +123,24 @@ namespace UniMob.UI.Tests
 
         // == The room beside the anchor ============================================================
         //
-        // A child that opens beside its anchor is capped at the room on the roomier side of it, not at
-        // the whole frame. Capped at the frame, a child too wide for either side is slid back inside
-        // over the very anchor it points at; capped at a side, content that wraps fits there.
-        //
-        // Geometry is canvas space, y up from the bottom-left, as WidgetGeometry carries it.
+        // A child opening east or west is offered at most the room on the wider side of its anchor.
+        // Geometry is canvas space, y up from the bottom-left. The gap and the padding differ so that
+        // a test can tell which one was subtracted.
 
         private const float Padding = 36f;
-        private const float Gap = 36f;
+        private const float Gap = 24f;
 
-        private static WidgetGeometry Geometry(float xMin, float yMin, float xMax, float yMax)
-        {
-            var quad = new Quad(
-                new Vector2(xMin, yMin),
-                new Vector2(xMin, yMax),
-                new Vector2(xMax, yMax),
-                new Vector2(xMax, yMin)
-            );
-            return new WidgetGeometry(quad, quad);
-        }
+        private static readonly Vector2 PortraitFrame = new Vector2(1460, 2440);
+
+        private static WidgetGeometry Geometry(float xMin, float yMin, float xMax, float yMax) =>
+            WidgetGeometryTests.FromRect(Rect.MinMaxRect(xMin, yMin, xMax, yMax));
+
+        /// <summary>An anchor near the right edge of <see cref="PortraitFrame"/>.</summary>
+        private static readonly WidgetGeometry NearTheRightEdge = Geometry(1300, 1700, 1360, 1760);
 
         /// <summary>
-        ///     Lays an anchored box out over a frame at the origin with a child that would take any
-        ///     room it is given, and hands back the child's render object to read what it was offered.
+        ///     Lays an anchored box out over a frame at the origin, with a child that takes any room it
+        ///     is offered, and hands back the child's render object to read what it was offered.
         /// </summary>
         private static (RenderAnchoredBox box, RenderCountingBox child) LayOut(
             Vector2 frame,
@@ -153,6 +149,7 @@ namespace UniMob.UI.Tests
             Alignment childAnchor,
             Vector2 offset,
             Axis? flipToFit,
+            float? padding = Padding,
             bool matchAnchorWidth = false
         )
         {
@@ -168,7 +165,7 @@ namespace UniMob.UI.Tests
                     TargetAnchor = target,
                     ChildAnchor = childAnchor,
                     Offset = offset,
-                    KeepInsidePadding = Padding,
+                    KeepInsidePadding = padding,
                     FlipToFit = flipToFit,
                     MatchAnchorWidth = matchAnchorWidth,
                 }
@@ -179,165 +176,142 @@ namespace UniMob.UI.Tests
             return (box, (RenderCountingBox)childState.InnerViewState.RenderObject);
         }
 
-        /// <summary>
-        ///     The case that covered its anchor: an info icon near the right edge of a portrait
-        ///     screen, its callout opening west.
-        /// </summary>
-        [Test]
-        public void OpeningWest_FromAnAnchorNearTheRightEdge_TheChildGetsTheRoomOnTheWest()
-        {
-            var (box, child) = LayOut(
-                frame: new Vector2(1460, 2440),
-                anchor: Geometry(1300, 1700, 1360, 1760),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: Axis.Horizontal
+        /// <summary>Opening west, as a callout does from an info icon.</summary>
+        private static (RenderAnchoredBox box, RenderCountingBox child) LayOutWest(
+            WidgetGeometry anchor,
+            Vector2? frame = null,
+            Vector2? offset = null,
+            Axis? flipToFit = Axis.Horizontal,
+            float? padding = Padding,
+            bool matchAnchorWidth = false
+        ) =>
+            LayOut(
+                frame ?? PortraitFrame,
+                anchor,
+                Alignment.CenterLeft,
+                Alignment.CenterRight,
+                offset ?? new Vector2(-Gap, 0),
+                flipToFit,
+                padding,
+                matchAnchorWidth
             );
+
+        [Test]
+        public void OpeningWest_NearTheRightEdge_TheChildGetsTheRoomOnTheWest_AndEndsBeforeTheAnchor()
+        {
+            var (box, child) = LayOutWest(NearTheRightEdge);
 
             Assert.AreEqual(1300 - Gap - Padding, child.LastConstraints.MaxWidth);
-            Assert.LessOrEqual(
-                box.ChildPosition.x + box.ChildSize.x,
-                1300 - Gap,
-                "a child that fits the west side should end before the anchor, not over it."
-            );
+            Assert.LessOrEqual(box.ChildPosition.x + box.ChildSize.x, 1300 - Gap);
         }
 
         [Test]
-        public void TheOppositeSideIsRoomier_TheChildGetsThatRoom_AndFlipsThere()
+        public void TheOppositeSideIsWider_TheChildGetsThatRoom_AndFlipsThere()
         {
-            var (box, child) = LayOut(
-                frame: new Vector2(1460, 2440),
-                anchor: Geometry(100, 1700, 160, 1760),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: Axis.Horizontal
-            );
+            var (box, child) = LayOutWest(Geometry(100, 1700, 160, 1760));
 
             Assert.AreEqual(1460 - 160 - Gap - Padding, child.LastConstraints.MaxWidth);
-            Assert.GreaterOrEqual(
-                box.ChildPosition.x,
-                160 + Gap,
-                "the child should flip east, where the room it was sized for is."
-            );
+            Assert.GreaterOrEqual(box.ChildPosition.x, 160 + Gap);
         }
 
-        /// <summary>
-        ///     A menu opening below its field cannot wrap its height to fit, and a column of entries
-        ///     capped at the room below would lose its last ones. It keeps the frame.
-        /// </summary>
         [Test]
-        public void OpeningSouth_TheChildKeepsTheFrame()
+        public void AnAnchorJustOffCentre_IsCappedAtItsWiderSide()
         {
-            // Near the top of the frame: canvas y is up, so the anchor sits high.
-            var (_, child) = LayOut(
-                frame: new Vector2(1000, 2000),
-                anchor: Geometry(400, 1800, 600, 1860),
-                target: Alignment.BottomCenter,
-                childAnchor: Alignment.TopCenter,
-                offset: new Vector2(0, Gap),
-                flipToFit: Axis.Vertical
-            );
-
-            Assert.AreEqual(2000 - 2 * Padding, child.LastConstraints.MaxHeight);
-            Assert.AreEqual(1000 - 2 * Padding, child.LastConstraints.MaxWidth);
-        }
-
-        /// <summary>
-        ///     The threshold compares like with like: the room left after offset and padding against
-        ///     half the frame's usable width. Against half the whole frame, this anchor would fall back
-        ///     to the frame and be covered.
-        /// </summary>
-        [Test]
-        public void AnAnchorJustOffCentre_StillCapsAtItsWiderSide()
-        {
-            var (_, child) = LayOut(
-                frame: new Vector2(1460, 2440),
-                anchor: Geometry(780, 1700, 840, 1760),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: Axis.Horizontal
-            );
+            // West: 780 - 60 = 720, over half the usable width, (1460 - 72) / 2 = 694.
+            var (_, child) = LayOutWest(Geometry(780, 1700, 840, 1760));
 
             Assert.AreEqual(780 - Gap - Padding, child.LastConstraints.MaxWidth);
         }
 
         [Test]
-        public void MatchingTheAnchorsWidth_IsNotUndercutByTheSideRoom()
+        public void BothSidesUnderHalfTheUsableWidth_TheChildKeepsTheFrame()
         {
-            var (_, child) = LayOut(
-                frame: new Vector2(1460, 2440),
-                anchor: Geometry(100, 1700, 1300, 1760),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: Axis.Horizontal,
-                matchAnchorWidth: true
-            );
-
-            Assert.AreEqual(1200, child.LastConstraints.MinWidth);
-            Assert.AreEqual(1200, child.LastConstraints.MaxWidth);
-        }
-
-        /// <summary>
-        ///     Both sides thin: the child would be squeezed into a sliver, so it keeps the frame and may
-        ///     overlap the anchor instead.
-        /// </summary>
-        [Test]
-        public void BothSidesUnderHalfTheFrame_TheChildKeepsTheFrame()
-        {
-            var (_, child) = LayOut(
-                frame: new Vector2(1000, 800),
-                anchor: Geometry(480, 380, 520, 420),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: Axis.Horizontal
+            // Each side: 480 - 60 = 420, under (1000 - 72) / 2 = 464.
+            var (_, child) = LayOutWest(
+                Geometry(480, 380, 520, 420),
+                frame: new Vector2(1000, 800)
             );
 
             Assert.AreEqual(1000 - 2 * Padding, child.LastConstraints.MaxWidth);
         }
 
         [Test]
-        public void WithoutAFlipAxis_TheChildKeepsTheFrame()
+        public void MatchingTheAnchorsWidth_IsNotUndercutByTheSideRoom()
+        {
+            // East: 1460 - 720 = 740, less the padding = 704, over half the usable width, 694.
+            var (_, child) = LayOutWest(
+                Geometry(0, 1700, 720, 1760),
+                offset: Vector2.zero,
+                matchAnchorWidth: true
+            );
+
+            Assert.AreEqual(720, child.LastConstraints.MinWidth);
+            Assert.AreEqual(720, child.LastConstraints.MaxWidth);
+        }
+
+        [Test]
+        public void AVerticalFlipAxis_KeepsTheFrameWidth()
+        {
+            var (_, child) = LayOutWest(NearTheRightEdge, flipToFit: Axis.Vertical);
+
+            Assert.AreEqual(1460 - 2 * Padding, child.LastConstraints.MaxWidth);
+        }
+
+        [Test]
+        public void NoFlipAxis_KeepsTheFrameWidth()
+        {
+            var (_, child) = LayOutWest(NearTheRightEdge, flipToFit: null);
+
+            Assert.AreEqual(1460 - 2 * Padding, child.LastConstraints.MaxWidth);
+        }
+
+        [Test]
+        public void ACentredTargetPoint_KeepsTheFrameWidth()
         {
             var (_, child) = LayOut(
-                frame: new Vector2(1460, 2440),
-                anchor: Geometry(1300, 1700, 1360, 1760),
-                target: Alignment.CenterLeft,
-                childAnchor: Alignment.CenterRight,
-                offset: new Vector2(-Gap, 0),
-                flipToFit: null
+                PortraitFrame,
+                NearTheRightEdge,
+                Alignment.BottomCenter,
+                Alignment.TopCenter,
+                new Vector2(0, Gap),
+                Axis.Horizontal
             );
 
             Assert.AreEqual(1460 - 2 * Padding, child.LastConstraints.MaxWidth);
         }
 
         [Test]
-        public void WithoutKeepInside_TheChildIsStillUnbounded()
+        public void AChildAlignedToTheAnchorsEdge_KeepsTheFrameWidth()
         {
-            var childState = TestHarness.Mount(new CountingBox { BoxSize = new Vector2(30, 40) });
-            var box = new RenderAnchoredBox(
-                new FakeAnchoredBoxState
-                {
-                    Child = childState,
-                    AnchorGeometry = Geometry(1300, 1700, 1360, 1760),
-                    SelfGeometry = Geometry(0, 0, 1460, 2440),
-                    TargetAnchor = Alignment.CenterLeft,
-                    ChildAnchor = Alignment.CenterRight,
-                    KeepInsidePadding = null,
-                    FlipToFit = Axis.Horizontal,
-                }
+            // The widget's default placement: the child's top-left at the anchor's bottom-left.
+            var (_, child) = LayOut(
+                new Vector2(1000, 800),
+                Geometry(0, 380, 100, 420),
+                Alignment.BottomLeft,
+                Alignment.TopLeft,
+                Vector2.zero,
+                Axis.Horizontal
             );
 
-            box.Layout(LayoutConstraints.Tight(1460, 2440));
+            Assert.AreEqual(1000 - 2 * Padding, child.LastConstraints.MaxWidth);
+        }
 
-            Assert.AreEqual(
-                float.PositiveInfinity,
-                ((RenderCountingBox)childState.InnerViewState.RenderObject).LastConstraints.MaxWidth
-            );
+        [Test]
+        public void AnUnmeasuredAnchor_KeepsTheFrameWidth()
+        {
+            // An empty anchor reads as a box at the origin, whose east side less this offset and the
+            // padding (1224) would undercut the frame (1388) if it were used.
+            var (_, child) = LayOutWest(WidgetGeometry.Empty, offset: new Vector2(-200, 0));
+
+            Assert.AreEqual(1460 - 2 * Padding, child.LastConstraints.MaxWidth);
+        }
+
+        [Test]
+        public void WithoutKeepInside_TheChildIsUnbounded()
+        {
+            var (_, child) = LayOutWest(NearTheRightEdge, padding: null);
+
+            Assert.AreEqual(float.PositiveInfinity, child.LastConstraints.MaxWidth);
         }
     }
 }
