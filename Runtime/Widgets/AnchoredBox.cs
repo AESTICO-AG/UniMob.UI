@@ -63,8 +63,8 @@ namespace UniMob.UI.Widgets
         /// anchor and <see cref="ChildAnchor"/> on the opposite one. The child is then offered at most
         /// the room on the wider side of the anchor, less <see cref="Offset"/> and the padding, so
         /// content that wraps fits beside the anchor and the flip puts it on that side. The cap does
-        /// not apply with <see cref="MatchAnchorWidth"/>, or when the wider side has no room or is under
-        /// half the frame's usable width; the frame is the bound then, as it is for a vertical flip.
+        /// not apply with <see cref="MatchAnchorWidth"/>, or when even the wider side is under half the
+        /// frame's usable width; the frame is the bound then, as it is for a vertical flip.
         /// </para>
         /// <para>
         /// When neither side fits, the preferred one is kept and <see cref="KeepInsidePadding"/>

@@ -214,8 +214,8 @@ namespace UniMob.UI.Rendering
             var room = Mathf.Max(east, west);
             var usable = this.state.SelfGeometry.Aabb.width - (padding * 2f);
 
-            // In a frame narrower than twice the padding both sides are negative, and so is half the
-            // usable width, which would let a negative bound through.
+            // In a frame narrower than twice the padding, half the usable width is negative, so a
+            // negative room could clear the half-width check and become a negative bound.
             return room <= 0f || room < usable / 2f ? null : room;
         }
 

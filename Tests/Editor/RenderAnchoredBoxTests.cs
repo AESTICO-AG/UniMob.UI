@@ -309,9 +309,10 @@ namespace UniMob.UI.Tests
         [Test]
         public void AFrameNarrowerThanTwiceThePadding_OffersNoNegativeWidth()
         {
-            // Each side: 20 - 36 = -16, and so is half the usable width, (40 - 72) / 2.
+            // West: 25 - 36 = -11, east: 40 - 25 - 36 = -21. The wider side, -11, clears half the
+            // usable width, (40 - 72) / 2 = -16, so only the room guard keeps it out.
             var (_, child) = LayOutWest(
-                Geometry(20, 380, 20, 420),
+                Geometry(25, 380, 25, 420),
                 frame: new Vector2(40, 800),
                 offset: Vector2.zero
             );
