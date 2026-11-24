@@ -10,10 +10,10 @@
     ],
     "repository": {
         "type": "git",
-        "url": "https://github.com/Girildo/UniMob.UI.git"
+        "url": "https://github.com/AESTICO-AG/UniMob.UI.git"
     },
-    "author": "Girildo (https://github.com/Girildo)",
-    "homepage": "https://github.com/Girildo/UniMob.UI#readme",
+    "author": "AESTICO-AG (https://github.com/AESTICO-AG)",
+    "homepage": "https://github.com/AESTICO-AG/UniMob.UI#readme",
     "dependencies": {
         "com.codewriter.unimob": "2.6.0",
         "com.unity.addressables": "2.9.0",

@@ -1,4 +1,4 @@
-# UniMob.UI [![Github license](https://img.shields.io/github/license/Girildo/UniMob.UI.svg?style=flat-square)](#) [![Unity 6000.3](https://img.shields.io/badge/Unity-6000.3+-2296F3.svg?style=flat-square)](#)
+# UniMob.UI [![Github license](https://img.shields.io/github/license/AESTICO-AG/UniMob.UI.svg?style=flat-square)](#) [![Unity 6000.3](https://img.shields.io/badge/Unity-6000.3+-2296F3.svg?style=flat-square)](#)
 
 A declarative library for building reactive user interfaces, built over [UniMob](https://github.com/codewriter-packages/UniMob).
 
@@ -12,7 +12,7 @@ original bottom-up `WidgetSize` layer has been removed rather than kept alongsid
 Upstream is kept as a read-only remote for archaeology. Changes are not taken from it and are not offered back to it.
 
 The `UniMob` core package it depends on is consumed from a fork as well
-([Girildo/UniMob](https://github.com/Girildo/UniMob), version 2.6.0, which adds `AtomScheduler.HasPendingWork`).
+([AESTICO-AG/UniMob](https://github.com/AESTICO-AG/UniMob), version 2.6.0, which adds `AtomScheduler.HasPendingWork`).
 The namespaces and the package name still say `UniMob` because both packages keep upstream's identity.
 
 ## Getting Started
@@ -292,8 +292,8 @@ Minimum Unity version is 6000.3.
 Distributed as a git package
 ([how to install a package from a git URL](https://docs.unity3d.com/Manual/upm-ui-giturl.html)).
 
-<br>Git URL (UniMob.UI): `https://github.com/Girildo/UniMob.UI.git`
-<br>Git URL (UniMob): `https://github.com/Girildo/UniMob.git` (2.6.0 or later; `UniMob.UI.Testing` needs `AtomScheduler.HasPendingWork`, which upstream does not ship)
+<br>Git URL (UniMob.UI): `https://github.com/AESTICO-AG/UniMob.UI.git`
+<br>Git URL (UniMob): `https://github.com/AESTICO-AG/UniMob.git` (2.6.0 or later; `UniMob.UI.Testing` needs `AtomScheduler.HasPendingWork`, which upstream does not ship)
 
 ## License
 
