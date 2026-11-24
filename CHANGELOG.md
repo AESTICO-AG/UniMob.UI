@@ -143,7 +143,7 @@ Every entry in this section is a breaking change.
 - **Minimum Unity is 6000.3**, corrected from a `2019.3` floor the package had long since left.
   Dependencies move with it: `com.codewriter.unimob` 2.6.0, `com.unity.addressables` 2.9.0,
   `com.unity.textmeshpro` 5.0.0. `com.codewriter.unimob` 2.6.0 is a build of the
-  [Girildo/UniMob](https://github.com/Girildo/UniMob) fork (upstream is at 2.5.0); it adds
+  [AESTICO-AG/UniMob](https://github.com/AESTICO-AG/UniMob) fork (upstream is at 2.5.0); it adds
   `AtomScheduler.HasPendingWork`, which is what lets a test ask the reactive graph whether it still
   has queued work.
 
